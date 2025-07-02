@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Chat Form</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 500px;
+            margin: 50px auto;
+            padding: 20px;
+            background: #fefefe;
+        }
+        
+        .chat-container {
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            padding: 20px;
+            background: white;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        
+        .chat-header {
+            text-align: center;
+            margin-bottom: 20px;
+            color: #333;
+        }
+        
+        .chat-history {
+            min-height: 200px;
+            max-height: 400px;
+            overflow-y: auto;
+            border: 1px solid #eee;
+            padding: 15px;
+            margin-bottom: 20px;
+            background: #f9f9f9;
+            border-radius: 5px;
+        }
+        
+        .message {
+            margin: 10px 0;
+            padding: 8px 12px;
+            border-radius: 15px;
+            max-width: 80%;
+        }
+        
+        .user-message {
+            background: #e3f2fd;
+            margin-left: auto;
+            text-align: right;
+        }
+        
+        .ai-message {
+            background: #f5f5f5;
+            margin-right: auto;
+        }
+        
+        .input-group {
+            display: flex;
+            gap: 10px;
+        }
+        
+        .message-input {
+            flex: 1;
+            padding: 10px;
+            border: 1px solid #ccc;
+            border-radius: 20px;
+            outline: none;
+        }
+        
+        .send-btn {
+            background: #333;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 20px;
+            cursor: pointer;
+        }
+        
+        .send-btn:hover {
+            background: #555;
+        }
+        
+        .send-btn:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+        
+        .status {
+            text-align: center;
+            margin-top: 10px;
+            font-size: 12px;
+            color: #666;
+        }
+        
+        .error {
+            color: #d32f2f;
+            background: #ffebee;
+            padding: 10px;
+            border-radius: 5px;
+            margin: 10px 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="chat-container">
+        <div class="chat-header">
+            <h3>🤖 AI Onboarding Assistant</h3>
+            <p>Ask me anything about your onboarding process!</p>
+        </div>
+        
+        <div class="chat-history" id="chatHistory">
+            <div class="message ai-message">
+                👋 Hello! I'm your onboarding assistant. How can I help you today?
+            </div>
+        </div>
+        
+        <form id="chatForm" action="https://aimechanics.app.n8n.cloud/webhook/3dd1f918-0876-46b6-87d6-55bb2e938bb4" method="POST" target="hiddenFrame">
+            <div class="input-group">
+                <input type="text" name="chatInput" class="message-input" id="messageInput" placeholder="Type your message..." required>
+                <button type="submit" class="send-btn" id="sendBtn">Send</button>
+            </div>
+        </form>
+        
+        <div class="status" id="status">Ready to chat!</div>
+        <div id="errorMsg"></div>
+        
+        <!-- Hidden iframe to handle form submission -->
+        <iframe name="hiddenFrame" style="display: none;"></iframe>
+    </div>
+
+    <script>
+        const form = document.getElementById('chatForm');
+        const messageInput = document.getElementById('messageInput');
+        const chatHistory = document.getElementById('chatHistory');
+        const status = document.getElementById('status');
+        const sendBtn = document.getElementById('sendBtn');
+        const errorMsg = document.getElementById('errorMsg');
+
+        // Add message to chat history
+        function addMessage(text, isUser = false) {
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `message ${isUser ? 'user-message' : 'ai-message'}`;
+            messageDiv.textContent = text;
+            chatHistory.appendChild(messageDiv);
+            chatHistory.scrollTop = chatHistory.scrollHeight;
+        }
+
+        // Handle form submission
+        form.addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            const message = messageInput.value.trim();
+            if (!message) return;
+
+            // Add user message to chat
+            addMessage(message, true);
+            
+            // Clear input and disable button
+            messageInput.value = '';
+            sendBtn.disabled = true;
+            status.textContent = 'Sending message...';
+            errorMsg.innerHTML = '';
+
+            // Create form data
+            const formData = new FormData();
+            formData.append('chatInput', message);
+
+            // Send using fetch with form data format that n8n expects
+            const formData = new FormData();
+            formData.append('chatInput', message);
+            
+            fetch('https://aimechanics.app.n8n.cloud/webhook/3dd1f918-0876-46b6-87d6-55bb2e938bb4', {
+                method: 'POST',
+                body: formData  // Send as form data instead of JSON
+            })
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+                return response.json();
+            })
+            .then(data => {
+                status.textContent = 'Response received!';
+                
+                // Try different response formats
+                const aiResponse = data.text || data.response || data.message || data.output || 
+                                 JSON.stringify(data) || 'I received your message but could not generate a response.';
+                
+                addMessage(aiResponse, false);
+                status.textContent = 'Ready to chat!';
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                status.textContent = 'Connection error';
+                errorMsg.innerHTML = `<div class="error">Error: ${error.message}</div>`;
+                addMessage('Sorry, I had trouble processing your message. Please try again.', false);
+            })
+            .finally(() => {
+                sendBtn.disabled = false;
+                messageInput.focus();
+            });
+        });
+
+        // Focus input on load
+        messageInput.focus();
+    </script>
+</body>
+</html>
